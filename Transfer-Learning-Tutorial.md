@@ -92,19 +92,19 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 代码解析：
 
 > ```
->{x:datasets.ImageFolder(os.path.join(data_dir, x),
->data_transforms[x]) 
->for x in ['train', 'val']} 
->```
+> {x:datasets.ImageFolder(os.path.join(data_dir, x),
+> data_transforms[x]) 
+> for x in ['train', 'val']} 
+> ```
 > 如果 x 是 'train'，替换掉：
 > 
 > ```
-{'train':datasets.ImageFolder(os.path.join(data_dir, train),
-data_transforms['train'])}
-```
+> {'train':datasets.ImageFolder(os.path>.join(data_dir, train),
+> data_transforms['train'])}
+> ```
 >
 > `os.path.join` 是合并两者路径,以下为例。
-
+>
 > ```
 > a = os.path.join(data_dir,'train')
 > print(a)
@@ -162,9 +162,7 @@ imshow(out, title=[class_names[x] for x in classes])
 
 ## 训练模型
 
-`torch.optim.lr_scheduler`提供了几种基于迭代数调整学习率的方法。
-
-在下面，参数scheduler是来自`torch.optim.lr_scheduler`的LR调度器对象。 
+`torch.optim.lr_scheduler`提供了几种基于迭代数调整学习率的方法。 
 
 
 
@@ -174,8 +172,8 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     # 记录开始的时间
     
     best_model_wts = copy.deepcopy(model.state_dict())
-    #返回包含模块整个状态的字典（参数和缓存）。
-    #拷贝对象，深拷贝（拷贝对象及其子对象）
+    # state_dict()返回包含模块整个状态的字典（参数和缓存）。
+    # deepcopy 拷贝对象，深拷贝（拷贝对象及其子对象）
 
     best_acc = 0.0
     #定义个比较好的准确率
@@ -192,7 +190,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         # 两个阶段‘train’和‘val’
             if phase == 'train':
                 scheduler.step()
-                # 打开优化器
+                # 打开动态优化器学习率。
                 model.train()  
                 # 将模型设置为训练模式 
             else:
@@ -225,7 +223,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
-                    # 只对训练集反向传播 + 优化器  
+                    # 只对训练集使用优化器反向传播 
 
                 # 统计数据
                 running_loss += loss.item() * inputs.size(0)
@@ -269,4 +267,104 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
 >[Python format 格式化函数](http://www.runoob.com/python/att-string-format.html)
 >[torch.optim - PyTorch主文档](https://pytorch.org/docs/stable/optim.html#torch.optim.lr_scheduler.ReduceLROnPlateau)
 
+
+## 微调卷积神经网络
+
+```
+model_ft = models.resnet18(pretrained=True)
+# 加载模型，打开预训练
+
+num_ftrs = model_ft.fc.in_features
+# 重置模型的fc层？！！！！
+
+model_ft.fc = nn.Linear(num_ftrs, 2)
+# 加一个线性层
+
+model_ft = model_ft.to(device)
+# 模型放入设备
+
+
+criterion = nn.CrossEntropyLoss()
+# 损失函数
+
+optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
+# 观察所有参数是否存在。用SGD优化模型。
+
+exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+# 根据迭代数调整学习率的方法，每7个周期，LR衰减0.1倍
+
+```
+> 参考资料
+> [torch.optim.lr_scheduler.MultiStepL
+>  ](https://pytorch.org/docs/stable/optim.html?highlight=lr_scheduler%20steplr#torch.optim.lr_scheduler.MultiStepLR)
+
+## 训练和评估
+```
+model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
+                       num_epochs=25)
+```
+
+## 可视化模型预测
+
+用于显示一些图像预测的泛型函数（generic function）。
+
+```
+def visualize_model(model, num_images=6):
+    was_training = model.training
+    model.eval()
+    # 一些模型使用具有不同训练和评估行为的模块，如批处理规范化。
+    # model.train(mode=was_training)将要传入的参数 
+    # model.eval() 将模块设置为评估模式。就不会使用类似Batch Normalization  和  Dropout 方法模式
+    
+    images_so_far = 0
+    fig = plt.figure()
+    # 如果未提供，将创建新图形，图形编号将递增。
+
+    with torch.no_grad():
+    # 不计算梯度
+        for i, (inputs, labels) in enumerate(dataloaders['val']):
+        # 同时列出数据下标和数据。
+        
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            # 放入设备
+
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+            # 预测结果
+            
+            for j in range(inputs.size()[0]):
+            # 从小批量个数开始遍历
+                
+                images_so_far += 1
+                
+                ax = plt.subplot(num_images//2, 2, images_so_far)
+                # 在当前图中添加子图。默认传入（3，2，？）递增，第一个是行数，第二个列数，第三个索引
+                
+                ax.axis('off')
+                # 关闭轴线和标签。
+                
+                ax.set_title('predicted: {}'.format(class_names[preds[j]]))
+                # title标题等于预测的标签
+                
+                imshow(inputs.cpu().data[j])
+                # 显示出inputs的图片
+                
+                if images_so_far == num_images:
+                # 如果到达第六次之后。
+                    model.train(mode=was_training)
+                # 模型改为训练模式。
+                    return
+                    
+        model.train(mode=was_training)
+
+```
+
+> 参考资料
+> [ def train](https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module.train) 
+> [matplotlib.pyplot.subplot - Matplotlib 3.0.3文档](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.subplot.html#matplotlib.pyplot.subplot)
+
+```
+visualize_model(model_ft)
+```
 
