@@ -93,40 +93,40 @@ class_names = image_datasets['train'].classes
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # 定义设备
 ```
-代码解析：
+> 代码解析：
 
 > ```
-> {x:datasets.ImageFolder(os.path.join(data_dir, x),
-> data_transforms[x]) 
+> {x:datasets.ImageFolder(os.path.join(data_dir, x),data_transforms[x]) 
 > for x in ['train', 'val']} 
 > ```
 > 如果 x 是 'train'，替换掉：
-> 
+
 > ```
 > {'train':datasets.ImageFolder(os.path>.join(data_dir, train),
 > data_transforms['train'])}
 > ```
->
-> `os.path.join` 是合并两者路径,以下为例 
->
+>  
+> os.path.join 是合并两者路径,以下为例 
+>  
 > ```
 > a = os.path.join(data_dir,'train')
 > print(a)
 > ```
-> 
+
 > 输出为
-> 
+
 > ```
 > data/hymenoptera_data/train
 > ```
 
->代码简化为
->
+> 代码简化为
+
 > ```
-{'train':datasets.ImageFolder("data/hymenoptera_data/train"
-,data_transforms['train'])}
-```
->指出了数据从哪个文件夹里取出，以及进行数据增强 
+> {'train':datasets.ImageFolder("data/hymenoptera_data/train"
+> ,data_transforms['train'])}
+> ```
+
+> 指出了数据从哪个文件夹里取出，以及进行数据增强 
 
 
 ### 可视化一些图像
@@ -272,11 +272,11 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     # 加载刚刚保存的模型返回模型
 ```
 
->参考资料：
->[state_dict()](https://pytorch.org/docs/stable/nn.html#torch.nn.Module.state_dict)
->[deepcopy](https://docs.python.org/3/library/copy.html)
->[Python format 格式化函数](http://www.runoob.com/python/att-string-format.html)
->[torch.optim - PyTorch主文档](https://pytorch.org/docs/stable/optim.html#torch.optim.lr_scheduler.ReduceLROnPlateau)
+> 参考资料：
+> [state_dict()](https://pytorch.org/docs/stable/nn.html#torch.nn.Module.state_dict)
+> [deepcopy](https://docs.python.org/3/library/copy.html)
+> [Python format 格式化函数](http://www.runoob.com/python/att-string-format.html)
+> [torch.optim - PyTorch主文档](https://pytorch.org/docs/stable/optim.html#torch.optim.lr_scheduler.ReduceLROnPlateau)
 
 
 ### 微调卷积神经网络
