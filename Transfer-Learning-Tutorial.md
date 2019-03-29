@@ -94,13 +94,13 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # 定义设备
 ```
 > 代码解析：
-
+>
 > ```
 > {x:datasets.ImageFolder(os.path.join(data_dir, x),data_transforms[x]) 
 > for x in ['train', 'val']} 
 > ```
 > 如果 x 是 'train'，替换掉：
-
+>
 > ```
 > {'train':datasets.ImageFolder(os.path>.join(data_dir, train),
 > data_transforms['train'])}
@@ -112,20 +112,20 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 > a = os.path.join(data_dir,'train')
 > print(a)
 > ```
-
+>
 > 输出为
-
+>
 > ```
 > data/hymenoptera_data/train
 > ```
-
+>
 > 代码简化为
-
+>
 > ```
 > {'train':datasets.ImageFolder("data/hymenoptera_data/train"
 > ,data_transforms['train'])}
 > ```
-
+>
 > 指出了数据从哪个文件夹里取出，以及进行数据增强 
 
 
