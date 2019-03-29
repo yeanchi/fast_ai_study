@@ -347,7 +347,7 @@ def visualize_model(model, num_images=6):
             # 预测结果
             
             for j in range(inputs.size()[0]):
-            # 从小批量个数开始遍历 1-5
+            # 从小批量个数开始遍历 1-4
                 
                 images_so_far += 1
                 
