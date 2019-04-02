@@ -1,3 +1,5 @@
+[toc]
+
 # 微调 torchvision 模型
 
 在本教程中，我们将深入研究如何对 [torchvision](https://pytorch.org/docs/stable/torchvision/models.html) 模型进行[微调](https://pytorch.org/docs/stable/torchvision/models.html)和特征提取，所有这些模型都已在1000级Imagenet数据集上进行了预训练。本教程将深入了解如何使用几个现代CNN架构，并将建立一个对任何 PyTorch 模型进行微调的直觉。由于每个模型架构都是不同的，所以不存在适用于所有场景的样板微调代码。相反，研究人员必须查看现有的体系结构，并为每个模型进行自定义调整。
@@ -283,7 +285,7 @@ model.classifier[6] = nn.Linear(4096,num_classes)
 model.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1,1), stride=(1,1))
 ```
 
-## Densenet
+### Densenet
 
 Densenet是在论文 [Densely Connected Convolutional Networks](https://arxiv.org/abs/1608.06993) 中介绍的. Torchvision 有四个变种的 Densenet，但在这里我们只使用Densenet-121。输出层为线性层，具有1024个输入特征:
 
@@ -515,12 +517,125 @@ data_transforms = {
 
 print("Initializing Datasets and Dataloaders...")
 
-# 创建培训
-image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
-# Create training and validation dataloaders
-dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
 
-# Detect if we have a GPU available
+image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x]) for x in ['train', 'val']}
+# 创建训练和验证集，把数据和标签放在一起，转换成 torch 能识别的 Dataset,以及数据增强
+
+dataloaders_dict = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size=batch_size, shuffle=True, num_workers=4) for x in ['train', 'val']}
+# 创建训练和验证集，随机的批次大小，子进程
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# 检测是否有GPU可用
 ```
+
+## 创建优化器
+
+既然模型结构是正确的，那么微调和特性提取的最后一步就是创建一个优化器，它只更新所需的参数。回想一下，在加载预训练模型之后，但在重新构造之前，如果feature_extract=True，我们手动将所有参数的.requires_grad属性设置为False。然后，重新初始化的层的参数默认为.requires_grad=True。现在我们知道，所有具有.requires_grad=True的参数都应该优化。接下来，我们将这些参数列表并将该列表输入到SGD算法构造函数中。
+
+要验证这一点，请查看打印参数以了解。当微调时，这个列表应该很长，并且包含所有的模型参数。但是，当特征提取时，这个列表应该很短，并且只包含被重构层的权重和偏差。
+
+```
+model_ft = model_ft.to(device)
+# 将模型发到cpu
+
+params_to_update = model_ft.parameters()
+# 模型参数
+
+print("Params to learn:")
+if feature_extract:
+# 如果梯度是关闭的
+
+    params_to_update = []
+    # 参数为空
+    for name,param in model_ft.named_parameters():
+    # 取出模型中的名字和参数
+        if param.requires_grad == True:
+        # 我们只会更新刚刚初始化的参数里面带有requires_grad=True的参数
+            params_to_update.append(param)
+            # 将更新的参数放入params_to_update
+            
+            print("\t",name)
+else:
+# 如果梯度没有关闭，直接继承之前的参数
+    for name,param in model_ft.named_parameters():
+        if param.requires_grad == True:
+            print("\t",name)
+
+optimizer_ft = optim.SGD(params_to_update, lr=0.001, momentum=0.9)
+# 观察所有参数都在优化
+```
+
+输出：
+
+
+```
+Params to learn:
+         classifier.1.weight
+         classifier.1.bias
+```
+
+
+## 运行培训和验证步骤
+
+最后，最后一步是为模型设置损失，然后针对设定的迭代数运行训练和验证功能。请注意，根据迭代的数量，此步骤可能需要一段时间才能在CPU上执行。此外，默认学习速率对于所有模型都不是最佳的，因此为了获得最大准确率，有必要分别调整每个模型。
+
+
+```
+criterion = nn.CrossEntropyLoss()
+# 设置损失函数
+
+model_ft, hist = train_model(model_ft, dataloaders_dict, criterion, optimizer_ft, num_epochs=num_epochs, is_inception=(model_name=="inception"))
+# 训练和评估
+
+```
+
+## 与从零开始训练的模型比较
+
+只是为了好玩，让我们看看如果我们不使用转移学习，模型将如何学习。微调与特征提取的性能在很大程度上取决于数据集，但一般而言，两种转移学习方法相对于从头开始训练的模型，在训练时间和总体准确性方面产生有利结果。
+
+
+```
+# 初始化用于此运行的模型的非预训练版本
+scratch_model,_ = initialize_model(model_name, num_classes, feature_extract=False, use_pretrained=False)
+
+scratch_model = scratch_model.to(device)
+
+scratch_optimizer = optim.SGD(scratch_model.parameters(), lr=0.001, momentum=0.9)
+
+scratch_criterion = nn.CrossEntropyLoss()
+
+_,scratch_hist = train_model(scratch_model, dataloaders_dict, scratch_criterion, scratch_optimizer, num_epochs=num_epochs, is_inception=(model_name=="inception"))
+
+#绘制验证准确度的训练曲线和训练周期的数量#(转移学习方法vs从头开始训练的模型)
+
+ohist = []
+shist = []
+
+ohist = [h.cpu().numpy() for h in hist]
+shist = [h.cpu().numpy() for h in scratch_hist]
+# 数据numpy()化
+
+plt.title("Validation Accuracy vs. Number of Training Epochs")
+plt.xlabel("Training Epochs")
+plt.ylabel("Validation Accuracy")
+plt.plot(range(1,num_epochs+1),ohist,label="Pretrained")
+plt.plot(range(1,num_epochs+1),shist,label="Scratch")
+# 画出转移学习方法vs从头开始训练的模型的准确率
+
+plt.ylim((0,1.))
+
+plt.xticks(np.arange(1, num_epochs+1, 1.0)
+
+plt.legend()
+plt.show()
+```
+
+## 最后的想法和下一步的去处
+
+尝试运行其他一些模型，看看准确度有多好。另外，请注意特征提取花费的时间较少，因为在向后传递中我们不必计算大部分梯度。这里有很多地方可以去。你可以：
+
+- 使用更难的数据集运行此代码，并查看转移学习的更多好处
+- 使用此处描述的方法，使用转移学习更新不同的模型，可能在新域（即NLP，音频等）中
+- 一旦您对模型感到满意，您可以将其导出为ONNX模型，或使用混合前端跟踪它以获得更快的速度和优化机会。
+
 
