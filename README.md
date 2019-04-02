@@ -1,4 +1,4 @@
-![PyTorch](/images/PyTorch.svg)
+![PyTorch](/images/PyTorch.svg){:height="50%" width="50%"}
 
 # PyTorch 官方教程中文翻译和代码解析
 
