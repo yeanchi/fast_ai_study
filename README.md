@@ -10,3 +10,9 @@
 
 [微调 torchvision 模型（Finetuning Torchvision Models）](https://github.com/yeanchi/pytorch-learning/blob/master/Finetuning-Torchvision-Models.md)
 
+[使用PYTORCH进行神经传递（NEURAL TRANSFER USING PYTORCH）](https://github.com/yeanchi/pytorch-learning/blob/master/NEURAL-TRANSFER-USING-PYTORCH.md)
+
+
+>  提示：个别内容带有 LaTeX 方程，可以使用以下插件方便阅读时渲染显示。 
+> [MathJax Plugin for Github - Chrome 网上应用店](https://chrome.google.com/webstore/detail/mathjax-plugin-for-github/ioemnmodlmafdkllaclgeombjnmnbima)
+
